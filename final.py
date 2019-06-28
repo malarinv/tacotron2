@@ -18,7 +18,7 @@ from text import text_to_sequence
 # from denoiser import Denoiser
 import os
 import soundfile as sf
-# import pyaudio
+import pyaudio
 import time
 
 sys.path.append('waveglow/')
@@ -34,10 +34,6 @@ waveglow = torch.load(waveglow_path, map_location='cpu')['model']
 waveglow.eval()
 for k in waveglow.convinv:
     k.float()
-
-# audio_interface = pyaudio.PyAudio()
-# # _audio_stream = audio_interface.open(format=pyaudio.paFloat32,channels=1, rate=22050,output=True)
-# _audio_stream = audio_interface.open(format=pyaudio.paInt16,channels=1, rate=16000,output=True)
 
 # https://github.com/NVIDIA/waveglow/issues/127
 for m in waveglow.modules():
@@ -72,12 +68,11 @@ def speech(t):
 
 
 def main():
-    speech(
-        ('I understand your frustration and disappointment. I am sorry that'
-         ' its happening and I would like to help prevent it in the future. '
-         'What style of diapers did you buy? For instance, was it the '
-         'snugglers, pull ups or baby dry.'))
-
+    data = speech('Hi I am Sia How may I help you today'.lower())
+    audio_interface = pyaudio.PyAudio()
+    _audio_stream = audio_interface.open(format=pyaudio.paInt16,channels=1, rate=16000,output=True)
+    _audio_stream.write(data)
+    import pdb; pdb.set_trace()
 
 if __name__ == '__main__':
     main()
