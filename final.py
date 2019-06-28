@@ -18,7 +18,7 @@ from text import text_to_sequence
 # from denoiser import Denoiser
 import os
 import soundfile as sf
-import pyaudio
+# import pyaudio
 import time
 
 sys.path.append('waveglow/')
@@ -35,9 +35,9 @@ waveglow.eval()
 for k in waveglow.convinv:
     k.float()
 
-audio_interface = pyaudio.PyAudio()
-# _audio_stream = audio_interface.open(format=pyaudio.paFloat32,channels=1, rate=22050,output=True)
-_audio_stream = audio_interface.open(format=pyaudio.paInt16,channels=1, rate=16000,output=True)
+# audio_interface = pyaudio.PyAudio()
+# # _audio_stream = audio_interface.open(format=pyaudio.paFloat32,channels=1, rate=22050,output=True)
+# _audio_stream = audio_interface.open(format=pyaudio.paInt16,channels=1, rate=16000,output=True)
 
 # https://github.com/NVIDIA/waveglow/issues/127
 for m in waveglow.modules():
@@ -62,12 +62,13 @@ def speech(t):
     mel_outputs, mel_outputs_postnet, _, alignments = model.inference(sequence)
     with torch.no_grad():
         audio = waveglow.infer(mel_outputs_postnet, sigma=0.666)
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     data = convert(audio[0].data.cpu().numpy())
     # _audio_stream.write(data.astype('float32'))
-    _audio_stream.write(data)
+    # _audio_stream.write(data)
     end = time.time()
     print(end - start)
+    return data
 
 
 def main():
