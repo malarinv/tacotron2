@@ -19,6 +19,8 @@ from text import text_to_sequence
 import os
 import soundfile as sf
 import pyaudio
+import klepto
+import IPython.display as ipd
 import time
 
 sys.path.append('waveglow/')
@@ -34,6 +36,7 @@ waveglow = torch.load(waveglow_path, map_location='cpu')['model']
 waveglow.eval()
 for k in waveglow.convinv:
     k.float()
+k_cache = klepto.archives.file_archive(cached=False)
 
 # https://github.com/NVIDIA/waveglow/issues/127
 for m in waveglow.modules():
@@ -43,13 +46,15 @@ for m in waveglow.modules():
 
 def convert(array):
     sf.write('sample.wav', array, 22050)
-    os.system('ffmpeg -i {0} -filter:a "atempo=0.80" -ar 16k {1}'.format('sample.wav', 'sample0.wav'))
+    os.system('ffmpeg -i {0} -filter:a "atempo=0.80" -ar 16k {1}'.format(
+        'sample.wav', 'sample0.wav'))
     data, rate = sf.read('sample0.wav', dtype='int16')
     os.remove('sample.wav')
     os.remove('sample0.wav')
     return data
 
 
+@klepto.safe.inf_cache(cache=k_cache)
 def speech(t):
     start = time.time()
     text = t
@@ -67,12 +72,53 @@ def speech(t):
     return data
 
 
-def main():
-    data = speech('Hi I am Sia How may I help you today'.lower())
+def display(data):
+    aud = ipd.Audio(data, rate=16000)
+    return aud
+
+
+def player_gen():
     audio_interface = pyaudio.PyAudio()
-    _audio_stream = audio_interface.open(format=pyaudio.paInt16,channels=1, rate=16000,output=True)
-    _audio_stream.write(data)
-    import pdb; pdb.set_trace()
+    _audio_stream = audio_interface.open(format=pyaudio.paInt16,
+                                         channels=1,
+                                         rate=16000,
+                                         output=True)
+
+    def play_device(data):
+        _audio_stream.write(data.tostring())
+        # _audio_stream.close()
+
+    return play_device
+
+
+def synthesize_corpus():
+    all_data = []
+    for line in open('corpus.txt').readlines():
+        print('synthesizing... "{}"'.format(line.strip()))
+        data = speech(line.strip())
+        all_data.append(data)
+    return all_data
+
+
+def play_corpus(corpus_synths):
+    player = player_gen()
+    for d in corpus_synths:
+        player(d)
+
+
+def main():
+    # data = speech('Hi I am Sia. How may I help you today .'.lower())
+    # audio_interface = pyaudio.PyAudio()
+    # _audio_stream = audio_interface.open(format=pyaudio.paInt16,
+    #                                      channels=1,
+    #                                      rate=16000,
+    #                                      output=True)
+    # _audio_stream.write(data)
+    corpus_synth_data = synthesize_corpus()
+    play_corpus(corpus_synth_data)
+    import ipdb
+    ipdb.set_trace()
+
 
 if __name__ == '__main__':
     main()
