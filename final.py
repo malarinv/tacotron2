@@ -22,16 +22,17 @@ import pyaudio
 import klepto
 import IPython.display as ipd
 import time
+from sia.file_utils import cached_model_path
 
 sys.path.append('waveglow/')
 hparams = create_hparams()
 hparams.sampling_rate = 22050
-checkpoint_path = "checkpoint_15000"
 model = load_model(hparams)
+tacotron2_path = cached_model_path("tacotron2_model")
 model.load_state_dict(
-    torch.load(checkpoint_path, map_location='cpu')['state_dict'])
+    torch.load(tacotron2_path, map_location='cpu')['state_dict'])
 model.eval()
-waveglow_path = 'waveglow_256channels.pt'
+waveglow_path = cached_model_path('waveglow_model')
 waveglow = torch.load(waveglow_path, map_location='cpu')['model']
 waveglow.eval()
 for k in waveglow.convinv:
@@ -93,9 +94,10 @@ def player_gen():
 
 def synthesize_corpus():
     all_data = []
-    for line in open('corpus.txt').readlines():
+    for (i, line) in enumerate(open('corpus.txt').readlines()):
         print('synthesizing... "{}"'.format(line.strip()))
         data = speech(line.strip())
+        sf.write('tts_{}.wav'.format(i), data, 16000)
         all_data.append(data)
     return all_data
 

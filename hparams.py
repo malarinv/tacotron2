@@ -1,7 +1,8 @@
 import tensorflow as tf
 from text import symbols
 
-#changed path, sampling rate and batch size
+
+# changed path, sampling rate and batch size
 def create_hparams(hparams_string=None, verbose=False):
     """Create model hyperparameters. Parse nondefault from given string."""
 
