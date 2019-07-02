@@ -1,30 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# import matplotlib
-# import matplotlib.pylab as plt
-
-# import IPython.display as ipd
-
 import sys
 import numpy as np
 import torch
 from hparams import create_hparams
 from model import Tacotron2
-from layers import TacotronSTFT, STFT
-# from audio_processing import griffin_lim
 from train import load_model
 from text import text_to_sequence
-# from denoiser import Denoiser
 import os
 import soundfile as sf
 import pyaudio
 import klepto
-import IPython.display as ipd
-import time
+from librosa import resample
+from librosa.effects import time_stretch
 from sia.file_utils import cached_model_path
+from sia.instruments import do_time
 
-sys.path.append('waveglow/')
+TTS_SAMPLE_RATE = 22050
+OUTPUT_SAMPLE_RATE = 16000
 
 
 class TTSModel(object):
@@ -33,7 +27,7 @@ class TTSModel(object):
     def __init__(self):
         super(TTSModel, self).__init__()
         hparams = create_hparams()
-        hparams.sampling_rate = 22050
+        hparams.sampling_rate = TTS_SAMPLE_RATE
         self.model = load_model(hparams)
         tacotron2_path = cached_model_path("tacotron2_model")
         self.model.load_state_dict(
@@ -53,8 +47,8 @@ class TTSModel(object):
             if 'Conv' in str(type(m)):
                 setattr(m, 'padding_mode', 'zeros')
 
+    @do_time
     def synth_speech(self, t):
-        start = time.time()
         text = t
         sequence = np.array(text_to_sequence(text,
                                              ['english_cleaners']))[None, :]
@@ -62,18 +56,18 @@ class TTSModel(object):
         mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(
             sequence)
         with torch.no_grad():
-            audio = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
-        # import ipdb; ipdb.set_trace()
-        data = convert(audio[0].data.cpu().numpy())
-        # _audio_stream.write(data.astype('float32'))
-        # _audio_stream.write(data)
-        end = time.time()
-        print(end - start)
+            audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
+        audio = audio_t[0].data.cpu().numpy()
+        # data = convert(audio)
+        slow_data = time_stretch(audio, 0.8)
+        float_data = resample(slow_data, TTS_SAMPLE_RATE, OUTPUT_SAMPLE_RATE)
+        data = float2pcm(float_data)
         return data.tobytes()
 
 
 def convert(array):
-    sf.write('sample.wav', array, 22050)
+    sf.write('sample.wav', array, TTS_SAMPLE_RATE)
+    # convert to $OUTPUT_SAMPLE_RATE
     os.system('ffmpeg -i {0} -filter:a "atempo=0.80" -ar 16k {1}'.format(
         'sample.wav', 'sample0.wav'))
     data, rate = sf.read('sample0.wav', dtype='int16')
@@ -82,7 +76,45 @@ def convert(array):
     return data
 
 
+# https://github.com/mgeier/python-audio/blob/master/audio-files/utility.py
+def float2pcm(sig, dtype='int16'):
+    """Convert floating point signal with a range from -1 to 1 to PCM.
+    Any signal values outside the interval [-1.0, 1.0) are clipped.
+    No dithering is used.
+    Note that there are different possibilities for scaling floating
+    point numbers to PCM numbers, this function implements just one of
+    them.  For an overview of alternatives see
+    http://blog.bjornroche.com/2009/12/int-float-int-its-jungle-out-there.html
+    Parameters
+    ----------
+    sig : array_like
+        Input array, must have floating point type.
+    dtype : data type, optional
+        Desired (integer) data type.
+    Returns
+    -------
+    numpy.ndarray
+        Integer data, scaled and clipped to the range of the given
+        *dtype*.
+    See Also
+    --------
+    pcm2float, dtype
+    """
+    sig = np.asarray(sig)
+    if sig.dtype.kind != 'f':
+        raise TypeError("'sig' must be a float array")
+    dtype = np.dtype(dtype)
+    if dtype.kind not in 'iu':
+        raise TypeError("'dtype' must be an integer type")
+
+    i = np.iinfo(dtype)
+    abs_max = 2**(i.bits - 1)
+    offset = i.min + abs_max
+    return (sig * abs_max + offset).clip(i.min, i.max).astype(dtype)
+
+
 def display(data):
+    import IPython.display as ipd
     aud = ipd.Audio(data, rate=16000)
     return aud
 
@@ -91,7 +123,7 @@ def player_gen():
     audio_interface = pyaudio.PyAudio()
     _audio_stream = audio_interface.open(format=pyaudio.paInt16,
                                          channels=1,
-                                         rate=16000,
+                                         rate=OUTPUT_SAMPLE_RATE,
                                          output=True)
 
     def play_device(data):
