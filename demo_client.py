@@ -7,7 +7,7 @@ from .tts import player_gen
 
 def tts_player():
     player = player_gen()
-    channel = grpc.insecure_channel('localhost:50060')
+    channel = grpc.insecure_channel("localhost:50060")
     stub = tts_pb2_grpc.ServerStub(channel)
 
     def play(t):
@@ -20,10 +20,11 @@ def tts_player():
 
 def main():
     play = tts_player()
-    play('How may I help you today?')
+    play("How may I help you today?")
     import pdb
+
     pdb.set_trace()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

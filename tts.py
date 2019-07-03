@@ -6,6 +6,7 @@ import torch
 from .hparams import create_hparams
 from .text import text_to_sequence
 from .glow import WaveGlow
+
 # import os
 # import soundfile as sf
 import pyaudio
@@ -26,11 +27,7 @@ WAVEGLOW_CONFIG = {
     "n_group": 8,
     "n_early_every": 4,
     "n_early_size": 2,
-    "WN_config": {
-        "n_layers": 8,
-        "n_channels": 256,
-        "kernel_size": 3
-    }
+    "WN_config": {"n_layers": 8, "n_channels": 256, "kernel_size": 3},
 }
 
 
@@ -44,32 +41,36 @@ class TTSModel(object):
         self.model = Tacotron2(hparams)
         tacotron2_path = cached_model_path("tacotron2_model")
         self.model.load_state_dict(
-            torch.load(tacotron2_path, map_location='cpu')['state_dict'])
+            torch.load(tacotron2_path, map_location="cpu")["state_dict"]
+        )
         self.model.eval()
-        waveglow_path = cached_model_path('waveglow_model')
+        waveglow_path = cached_model_path("waveglow_model")
         self.waveglow = WaveGlow(**WAVEGLOW_CONFIG)
-        wave_params = torch.load(waveglow_path, map_location='cpu')
+        wave_params = torch.load(waveglow_path, map_location="cpu")
         self.waveglow.load_state_dict(wave_params)
         self.waveglow.eval()
         for k in self.waveglow.convinv:
             k.float()
         self.k_cache = klepto.archives.file_archive(cached=False)
         self.synth_speech = klepto.safe.inf_cache(cache=self.k_cache)(
-            self.synth_speech)
+            self.synth_speech
+        )
 
         # https://github.com/NVIDIA/waveglow/issues/127
         for m in self.waveglow.modules():
-            if 'Conv' in str(type(m)):
-                setattr(m, 'padding_mode', 'zeros')
+            if "Conv" in str(type(m)):
+                setattr(m, "padding_mode", "zeros")
 
     @do_time
     def synth_speech(self, t):
         text = t
-        sequence = np.array(text_to_sequence(text,
-                                             ['english_cleaners']))[None, :]
+        sequence = np.array(text_to_sequence(text, ["english_cleaners"]))[
+            None, :
+        ]
         sequence = torch.autograd.Variable(torch.from_numpy(sequence)).long()
         mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(
-            sequence)
+            sequence
+        )
         with torch.no_grad():
             audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
         audio = audio_t[0].data.cpu().numpy()
@@ -92,7 +93,7 @@ class TTSModel(object):
 
 
 # https://github.com/mgeier/python-audio/blob/master/audio-files/utility.py
-def float2pcm(sig, dtype='int16'):
+def float2pcm(sig, dtype="int16"):
     """Convert floating point signal with a range from -1 to 1 to PCM.
     Any signal values outside the interval [-1.0, 1.0) are clipped.
     No dithering is used.
@@ -116,30 +117,33 @@ def float2pcm(sig, dtype='int16'):
     pcm2float, dtype
     """
     sig = np.asarray(sig)
-    if sig.dtype.kind != 'f':
+    if sig.dtype.kind != "f":
         raise TypeError("'sig' must be a float array")
     dtype = np.dtype(dtype)
-    if dtype.kind not in 'iu':
+    if dtype.kind not in "iu":
         raise TypeError("'dtype' must be an integer type")
 
     i = np.iinfo(dtype)
-    abs_max = 2**(i.bits - 1)
+    abs_max = 2 ** (i.bits - 1)
     offset = i.min + abs_max
     return (sig * abs_max + offset).clip(i.min, i.max).astype(dtype)
 
 
 def display(data):
     import IPython.display as ipd
+
     aud = ipd.Audio(data, rate=16000)
     return aud
 
 
 def player_gen():
     audio_interface = pyaudio.PyAudio()
-    _audio_stream = audio_interface.open(format=pyaudio.paInt16,
-                                         channels=1,
-                                         rate=OUTPUT_SAMPLE_RATE,
-                                         output=True)
+    _audio_stream = audio_interface.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=OUTPUT_SAMPLE_RATE,
+        output=True,
+    )
 
     def play_device(data):
         _audio_stream.write(data)
@@ -151,7 +155,7 @@ def player_gen():
 def synthesize_corpus():
     tts_model = TTSModel()
     all_data = []
-    for (i, line) in enumerate(open('corpus.txt').readlines()):
+    for (i, line) in enumerate(open("corpus.txt").readlines()):
         print('synthesizing... "{}"'.format(line.strip()))
         data = tts_model.synth_speech(line.strip())
         all_data.append(data)
@@ -168,8 +172,9 @@ def main():
     corpus_synth_data = synthesize_corpus()
     play_corpus(corpus_synth_data)
     import ipdb
+
     ipdb.set_trace()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
