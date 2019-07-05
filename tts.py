@@ -20,6 +20,7 @@ from .model import Tacotron2
 TTS_SAMPLE_RATE = 22050
 OUTPUT_SAMPLE_RATE = 16000
 
+# config from
 # https://github.com/NVIDIA/waveglow/blob/master/config.json
 WAVEGLOW_CONFIG = {
     "n_mel_channels": 80,
@@ -55,7 +56,7 @@ class TTSModel(object):
         self.synth_speech = klepto.safe.inf_cache(cache=self.k_cache)(
             self.synth_speech
         )
-
+        # workaround from
         # https://github.com/NVIDIA/waveglow/issues/127
         for m in self.waveglow.modules():
             if "Conv" in str(type(m)):
@@ -81,17 +82,7 @@ class TTSModel(object):
         return data.tobytes()
 
 
-# def convert(array):
-#     sf.write('sample.wav', array, TTS_SAMPLE_RATE)
-#     # convert to $OUTPUT_SAMPLE_RATE
-#     os.system('ffmpeg -i {0} -filter:a "atempo=0.80" -ar 16k {1}'.format(
-#         'sample.wav', 'sample0.wav'))
-#     data, rate = sf.read('sample0.wav', dtype='int16')
-#     os.remove('sample.wav')
-#     os.remove('sample0.wav')
-#     return data
-
-
+# adapted from
 # https://github.com/mgeier/python-audio/blob/master/audio-files/utility.py
 def float2pcm(sig, dtype="int16"):
     """Convert floating point signal with a range from -1 to 1 to PCM.
@@ -171,9 +162,9 @@ def play_corpus(corpus_synths):
 def main():
     corpus_synth_data = synthesize_corpus()
     play_corpus(corpus_synth_data)
-    import ipdb
+    import pdb
 
-    ipdb.set_trace()
+    pdb.set_trace()
 
 
 if __name__ == "__main__":
