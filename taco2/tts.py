@@ -3,19 +3,14 @@
 
 import numpy as np
 import torch
-from .hparams import create_hparams
-from .text import text_to_sequence
-from .glow import WaveGlow
-
-# import os
-# import soundfile as sf
 import pyaudio
-import klepto
 from librosa import resample
 from librosa.effects import time_stretch
-from sia.file_utils import cached_model_path
-from sia.instruments import do_time
+import klepto
 from .model import Tacotron2
+from glow import WaveGlow
+from .hparams import HParams
+from .text import text_to_sequence
 
 TTS_SAMPLE_RATE = 22050
 OUTPUT_SAMPLE_RATE = 16000
@@ -35,43 +30,34 @@ WAVEGLOW_CONFIG = {
 class TTSModel(object):
     """docstring for TTSModel."""
 
-    def __init__(self):
+    def __init__(self, tacotron2_path, waveglow_path):
         super(TTSModel, self).__init__()
-        hparams = create_hparams()
+        hparams = HParams()
         hparams.sampling_rate = TTS_SAMPLE_RATE
         self.model = Tacotron2(hparams)
-        tacotron2_path = cached_model_path("tacotron2_model")
         self.model.load_state_dict(
             torch.load(tacotron2_path, map_location="cpu")["state_dict"]
         )
         self.model.eval()
-        waveglow_path = cached_model_path("waveglow_model")
-        self.waveglow = WaveGlow(**WAVEGLOW_CONFIG)
         wave_params = torch.load(waveglow_path, map_location="cpu")
+        self.waveglow = WaveGlow(**WAVEGLOW_CONFIG)
         self.waveglow.load_state_dict(wave_params)
         self.waveglow.eval()
         for k in self.waveglow.convinv:
             k.float()
         self.k_cache = klepto.archives.file_archive(cached=False)
-        self.synth_speech = klepto.safe.inf_cache(cache=self.k_cache)(
-            self.synth_speech
-        )
+        self.synth_speech = klepto.safe.inf_cache(cache=self.k_cache)(self.synth_speech)
         # workaround from
         # https://github.com/NVIDIA/waveglow/issues/127
         for m in self.waveglow.modules():
             if "Conv" in str(type(m)):
                 setattr(m, "padding_mode", "zeros")
 
-    @do_time
     def synth_speech(self, t):
         text = t
-        sequence = np.array(text_to_sequence(text, ["english_cleaners"]))[
-            None, :
-        ]
+        sequence = np.array(text_to_sequence(text, ["english_cleaners"]))[None, :]
         sequence = torch.autograd.Variable(torch.from_numpy(sequence)).long()
-        mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(
-            sequence
-        )
+        mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(sequence)
         with torch.no_grad():
             audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
         audio = audio_t[0].data.cpu().numpy()
@@ -130,10 +116,7 @@ def display(data):
 def player_gen():
     audio_interface = pyaudio.PyAudio()
     _audio_stream = audio_interface.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=OUTPUT_SAMPLE_RATE,
-        output=True,
+        format=pyaudio.paInt16, channels=1, rate=OUTPUT_SAMPLE_RATE, output=True
     )
 
     def play_device(data):
@@ -144,13 +127,29 @@ def player_gen():
 
 
 def synthesize_corpus():
-    tts_model = TTSModel()
+    tts_model = TTSModel(
+        "/Users/malar/Work/tacotron2_statedict.pt",
+        "/Users/malar/Work/waveglow.pt",
+    )
     all_data = []
     for (i, line) in enumerate(open("corpus.txt").readlines()):
-        print('synthesizing... "{}"'.format(line.strip()))
+        print(f'synthesizing... "{line.strip()}"')
         data = tts_model.synth_speech(line.strip())
         all_data.append(data)
     return all_data
+
+def repl():
+    tts_model = TTSModel(
+        "/Users/malar/Work/tacotron2_statedict.pt",
+        # "/Users/malar/Work/waveglow_256channels.pt",
+        "/Users/malar/Work/waveglow.pt",
+    )
+    player = player_gen()
+    def loop():
+        text = input('tts >')
+        data = tts_model.synth_speech(text.strip())
+        player(data)
+    return loop
 
 
 def play_corpus(corpus_synths):
@@ -160,11 +159,13 @@ def play_corpus(corpus_synths):
 
 
 def main():
-    corpus_synth_data = synthesize_corpus()
-    play_corpus(corpus_synth_data)
-    import pdb
-
-    pdb.set_trace()
+    # corpus_synth_data = synthesize_corpus()
+    # play_corpus(corpus_synth_data)
+    interactive_loop = repl()
+    while True:
+        interactive_loop()
+    # import pdb
+    # pdb.set_trace()
 
 
 if __name__ == "__main__":
