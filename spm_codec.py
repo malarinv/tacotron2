@@ -25,7 +25,7 @@ def _create_sentencepiece_corpus():
 
 
 def _create_sentencepiece_vocab(vocab_size=SPM_VOCAB_SIZE):
-    train_params = "--input={} --model_prefix={} --vocab_size={}".format(
+    train_params = "--input={} --model_type=unigram --character_coverage=1.0 --model_prefix={} --vocab_size={}".format(
         SPM_CORPUS_FILE, SPM_MODEL_PREFIX, vocab_size
     )
     spm.SentencePieceTrainer.Train(train_params)
@@ -56,8 +56,8 @@ def _interactive_test():
 
 
 def main():
-    # _create_sentencepiece_corpus()
-    # _create_sentencepiece_vocab()
+    _create_sentencepiece_corpus()
+    _create_sentencepiece_vocab()
     _interactive_test()
 
 
