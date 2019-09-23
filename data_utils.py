@@ -5,8 +5,8 @@ import torch.utils.data
 
 import layers
 from utils import load_wav_to_torch, load_filepaths_and_text
-from text import text_to_sequence
-
+# from text import text_to_sequence
+from spm_codec import text_to_sequence
 
 class TextMelLoader(torch.utils.data.Dataset):
     """
