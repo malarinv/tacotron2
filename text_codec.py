@@ -1,10 +1,11 @@
 from utils import load_filepaths_and_text
 
-# from text import text_to_sequence, sequence_to_text
+from text import text_to_sequence, sequence_to_text
 
 from hparams import create_hparams
 import sentencepiece as spm
 from text import symbols
+from bpemb import BPEmb
 
 
 SPM_CORPUS_FILE = "filelists/text_corpus.txt"
@@ -44,7 +45,18 @@ def _spm_text_codecs():
     return ttseq, seqtt
 
 
-text_to_sequence, sequence_to_text = _spm_text_codecs()
+def _bpemb_text_codecs():
+    bpemb_en = BPEmb(lang="en", dim=50, vs=148)
+    def ttseq(text, cleaners):
+        return bpemb_en.encode_ids(text)
+
+    def seqtt(sequence):
+        return bpemb_en.decode_ids(sequence)
+
+    return ttseq, seqtt
+
+# text_to_sequence, sequence_to_text = _spm_text_codecs()
+text_to_sequence, sequence_to_text = _bpemb_text_codecs()
 
 
 def _interactive_test():
@@ -56,8 +68,8 @@ def _interactive_test():
 
 
 def main():
-    _create_sentencepiece_corpus()
-    _create_sentencepiece_vocab()
+    # _create_sentencepiece_corpus()
+    # _create_sentencepiece_vocab()
     _interactive_test()
 
 

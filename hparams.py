@@ -39,12 +39,12 @@ def create_hparams(hparams_string=None, verbose=False):
         win_length=1024,
         n_mel_channels=40,
         mel_fmin=0.0,
-        mel_fmax=8000.0,
+        mel_fmax=4000.0,
 
         ################################
         # Model Parameters             #
         ################################
-        n_symbols=len(symbols),
+        n_symbols=1000,#len(symbols),
         symbols_embedding_dim=512,
 
         # Encoder parameters
