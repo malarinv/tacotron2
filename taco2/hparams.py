@@ -2,6 +2,7 @@
 # import tensorflow as tf
 from dataclasses import dataclass
 from .text import symbols
+# from .text_codec import symbols
 
 @dataclass
 class HParams(object):

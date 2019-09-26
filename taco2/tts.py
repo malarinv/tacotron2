@@ -11,6 +11,7 @@ from .model import Tacotron2
 from glow import WaveGlow
 from .hparams import HParams
 from .text import text_to_sequence
+from .denoiser import Denoiser
 
 TTS_SAMPLE_RATE = 22050
 OUTPUT_SAMPLE_RATE = 16000
@@ -18,7 +19,7 @@ OUTPUT_SAMPLE_RATE = 16000
 # config from
 # https://github.com/NVIDIA/waveglow/blob/master/config.json
 WAVEGLOW_CONFIG = {
-    "n_mel_channels": 80,
+    "n_mel_channels": 40,
     "n_flows": 12,
     "n_group": 8,
     "n_early_every": 4,
@@ -40,26 +41,36 @@ class TTSModel(object):
         )
         self.model.eval()
         wave_params = torch.load(waveglow_path, map_location="cpu")
-        self.waveglow = WaveGlow(**WAVEGLOW_CONFIG)
-        self.waveglow.load_state_dict(wave_params)
-        self.waveglow.eval()
-        for k in self.waveglow.convinv:
-            k.float()
-        self.k_cache = klepto.archives.file_archive(cached=False)
-        self.synth_speech = klepto.safe.inf_cache(cache=self.k_cache)(self.synth_speech)
+        try:
+            self.waveglow = WaveGlow(**WAVEGLOW_CONFIG)
+            self.waveglow.load_state_dict(wave_params)
+            self.waveglow.eval()
+        except:
+            self.waveglow = wave_params['model']
+            self.waveglow = self.waveglow.remove_weightnorm(self.waveglow)
+            self.waveglow.eval()
         # workaround from
         # https://github.com/NVIDIA/waveglow/issues/127
         for m in self.waveglow.modules():
             if "Conv" in str(type(m)):
                 setattr(m, "padding_mode", "zeros")
+        for k in self.waveglow.convinv:
+            k.float()
+        self.k_cache = klepto.archives.file_archive(cached=False)
+        self.synth_speech = klepto.safe.inf_cache(cache=self.k_cache)(self.synth_speech)
+        self.denoiser = Denoiser(self.waveglow)
 
-    def synth_speech(self, t):
-        text = t
+
+    def synth_speech(self, text):
         sequence = np.array(text_to_sequence(text, ["english_cleaners"]))[None, :]
         sequence = torch.autograd.Variable(torch.from_numpy(sequence)).long()
         mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(sequence)
+        # width = mel_outputs_postnet.shape[2]
+        # wave_glow_input = torch.randn(1, 80, width)*0.00001
+        # wave_glow_input[:,40:,:] = mel_outputs_postnet
         with torch.no_grad():
             audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
+            audio_t = self.denoiser(audio_t, 0.1)[0]
         audio = audio_t[0].data.cpu().numpy()
         # data = convert(audio)
         slow_data = time_stretch(audio, 0.8)
@@ -67,7 +78,30 @@ class TTSModel(object):
         data = float2pcm(float_data)
         return data.tobytes()
 
+    def synth_speech_algo(self,text,griffin_iters=60):
+        sequence = np.array(text_to_sequence(text, ["english_cleaners"]))[None, :]
+        sequence = torch.autograd.Variable(torch.from_numpy(sequence)).long()
+        mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(sequence)
+        from .hparams import HParams
+        from .layers import TacotronSTFT
+        from .audio_processing import griffin_lim
+        hparams = HParams()
+        taco_stft = TacotronSTFT(hparams.filter_length, hparams.hop_length, hparams.win_length, n_mel_channels=hparams.n_mel_channels, sampling_rate=hparams.sampling_rate, mel_fmax=4000)
+        mel_decompress = taco_stft.spectral_de_normalize(mel_outputs_postnet)
+        mel_decompress = mel_decompress.transpose(1, 2).data.cpu()
+        spec_from_mel_scaling = 1000
+        spec_from_mel = torch.mm(mel_decompress[0], taco_stft.mel_basis)
+        spec_from_mel = spec_from_mel.transpose(0, 1).unsqueeze(0)
+        spec_from_mel = spec_from_mel * spec_from_mel_scaling
 
+        audio = griffin_lim(torch.autograd.Variable(spec_from_mel[:, :, :-1]), taco_stft.stft_fn, griffin_iters)
+        audio = audio.squeeze()
+        audio = audio.cpu().numpy()
+
+        slow_data = time_stretch(audio, 0.8)
+        float_data = resample(slow_data, TTS_SAMPLE_RATE, OUTPUT_SAMPLE_RATE)
+        data = float2pcm(float_data)
+        return data.tobytes()
 # adapted from
 # https://github.com/mgeier/python-audio/blob/master/audio-files/utility.py
 def float2pcm(sig, dtype="int16"):
@@ -140,9 +174,14 @@ def synthesize_corpus():
 
 def repl():
     tts_model = TTSModel(
-        "/Users/malar/Work/tacotron2_statedict.pt",
-        # "/Users/malar/Work/waveglow_256channels.pt",
-        "/Users/malar/Work/waveglow.pt",
+        # "/Users/malar/Work/tacotron2_statedict.pt",
+        # "/Users/malar/Work/tacotron2_80_22000.pt",
+        "/Users/malar/Work/tacotron2_80_66000.pt",
+        # "/Users/malar/Work/tacotron2_40_22000.pt",
+        # "/Users/malar/Work/tacotron2_16000.pt",
+        "/Users/malar/Work/waveglow_256converted.pt",
+        # "/Users/malar/Work/waveglow.pt",
+        # "/Users/malar/Work/waveglow_38000",
     )
     player = player_gen()
     def loop():
