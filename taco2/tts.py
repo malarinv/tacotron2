@@ -176,10 +176,10 @@ def repl():
     tts_model = TTSModel(
         # "/Users/malar/Work/tacotron2_statedict.pt",
         # "/Users/malar/Work/tacotron2_80_22000.pt",
-        "/Users/malar/Work/tacotron2_80_66000.pt",
+        "/path/to/tacotron2.pt",
         # "/Users/malar/Work/tacotron2_40_22000.pt",
         # "/Users/malar/Work/tacotron2_16000.pt",
-        "/Users/malar/Work/waveglow_256converted.pt",
+        "/path/to/waveglow.pt",
         # "/Users/malar/Work/waveglow.pt",
         # "/Users/malar/Work/waveglow_38000",
     )
