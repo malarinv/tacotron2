@@ -29,7 +29,7 @@ packages = find_packages()
 
 setup(
     author="Malar Kannan",
-    author_email="malar@agaralabs.com",
+    author_email="malarkannan.invention@gmail.com",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
@@ -46,14 +46,14 @@ setup(
     install_requires=requirements,
     long_description=readme + "\n\n" + history,
     include_package_data=True,
-    keywords="tacotron2",
+    keywords="tacotron2 tts",
     name="taco2-tts",
     packages=packages,
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/malarinv/tacotron2",
-    version="0.1.0",
+    version="0.2.0",
     zip_safe=False,
-    entry_points={"console_scripts": ("tts_debug = tts:main",)},
+    entry_points={"console_scripts": ("tts_debug = taco2.tts:main",)},
 )

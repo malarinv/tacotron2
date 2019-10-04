@@ -2,7 +2,7 @@
 
 [![image](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 
-> Generate speech audio from text
+> Generates speech audio from text
 ---
 
 # Table of Contents
@@ -13,22 +13,25 @@
 
 # Features
 
-* Tacotron2 Synthesized Speech
+* TTS using Tacotron2
 
 
 # Installation
-Install the packages with for production use. It downloads the dependencies
+To install the packages and its dependencies run.
 ```bash
 python setup.py install
 ```
+or with pip
+```bash
+pip install .
+```
 
-> Still facing an issue? Check the [Issues](#issues) section or open a new issue.
-
-The installation should be smooth with Python 3.6 or newer.
+The installation should work on Python 3.6 or newer. Untested on Python 2.7
 
 # Usage
-> API
 ```python
-tts_model = TTSModel("/path/to/tacotron2_model","/path/to/waveglow_model")
-SPEECH_AUDIO = tts_model.synth_speech(TEXT)
+from taco2.tts import TTSModel
+tts_model = TTSModel("/path/to/tacotron2_model","/path/to/waveglow_model") # Loads the models
+SPEECH_AUDIO = tts_model.synth_speech(TEXT) # Returns the wav buffer
 ```
+If `'/path/to/waveglow_model'` is `None` *Griffin-Lim vocoder* will be used.
