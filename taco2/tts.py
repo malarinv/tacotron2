@@ -16,7 +16,8 @@ from .denoiser import Denoiser
 from .audio_processing import griffin_lim, postprocess_audio
 
 TTS_SAMPLE_RATE = 22050
-OUTPUT_SAMPLE_RATE = 16000
+OUTPUT_SAMPLE_RATE = 22050
+# OUTPUT_SAMPLE_RATE = 16000
 
 # config from
 # https://github.com/NVIDIA/waveglow/blob/master/config.json
@@ -118,7 +119,7 @@ class TTSModel(object):
         audio = audio.cpu().numpy()
 
         return postprocess_audio(
-            audio, src_rate=TTS_SAMPLE_RATE, dst_rate=OUTPUT_SAMPLE_RATE
+            audio, tempo=0.6, src_rate=TTS_SAMPLE_RATE, dst_rate=OUTPUT_SAMPLE_RATE
         )
 
 
