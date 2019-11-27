@@ -40,6 +40,7 @@ from scipy.signal import get_window
 from librosa.util import pad_center, tiny
 from .audio_processing import window_sumsquare
 
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class STFT(torch.nn.Module):
     """
@@ -147,9 +148,7 @@ class STFT(torch.nn.Module):
             window_sum = torch.autograd.Variable(
                 torch.from_numpy(window_sum), requires_grad=False
             )
-            # window_sum = window_sum.cuda() if magnitude.is_cuda else
-            #              window_sum
-            # initially not commented out
+            window_sum = window_sum.to(DEVICE)
             inverse_transform[:, :, approx_nonzero_indices] /= window_sum[
                 approx_nonzero_indices
             ]

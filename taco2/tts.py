@@ -39,20 +39,29 @@ class TTSModel(object):
         hparams = HParams(**kwargs)
         hparams.sampling_rate = TTS_SAMPLE_RATE
         self.model = Tacotron2(hparams)
-        self.model.load_state_dict(
-            torch.load(tacotron2_path, map_location="cpu")["state_dict"]
-        )
-        self.model.eval()
+        if torch.cuda.is_available():
+            self.model.load_state_dict(torch.load(tacotron2_path)["state_dict"])
+            self.model.cuda().eval()
+        else:
+            self.model.load_state_dict(
+                torch.load(tacotron2_path, map_location="cpu")["state_dict"]
+            )
+            self.model.eval()
         self.k_cache = klepto.archives.file_archive(cached=False)
         if waveglow_path:
-            wave_params = torch.load(waveglow_path, map_location="cpu")
+            if torch.cuda.is_available():
+                wave_params = torch.load(waveglow_path)
+            else:
+                wave_params = torch.load(waveglow_path, map_location="cpu")
             try:
                 self.waveglow = WaveGlow(**WAVEGLOW_CONFIG)
                 self.waveglow.load_state_dict(wave_params)
-                self.waveglow.eval()
             except:
                 self.waveglow = wave_params["model"]
                 self.waveglow = self.waveglow.remove_weightnorm(self.waveglow)
+            if torch.cuda.is_available():
+                self.waveglow.cuda().eval()
+            else:
                 self.waveglow.eval()
             # workaround from
             # https://github.com/NVIDIA/waveglow/issues/127
@@ -60,7 +69,7 @@ class TTSModel(object):
                 if "Conv" in str(type(m)):
                     setattr(m, "padding_mode", "zeros")
             for k in self.waveglow.convinv:
-                k.float()
+                k.float().half()
             self.denoiser = Denoiser(
                 self.waveglow, n_mel_channels=hparams.n_mel_channels
             )
@@ -82,20 +91,27 @@ class TTSModel(object):
 
     def generate_mel_postnet(self, text):
         sequence = np.array(text_to_sequence(text, ["english_cleaners"]))[None, :]
-        sequence = torch.autograd.Variable(torch.from_numpy(sequence)).long()
+        if torch.cuda.is_available():
+            sequence = torch.autograd.Variable(torch.from_numpy(sequence)).cuda().long()
+        else:
+            sequence = torch.autograd.Variable(torch.from_numpy(sequence)).long()
         with torch.no_grad():
             mel_outputs, mel_outputs_postnet, _, alignments = self.model.inference(
                 sequence
             )
         return mel_outputs_postnet
 
-    def synth_speech(self, text):
+    def synth_speech_array(self, text):
         mel_outputs_postnet = self.generate_mel_postnet(text)
 
         with torch.no_grad():
             audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
             audio_t = self.denoiser(audio_t, 0.1)[0]
         audio = audio_t[0].data.cpu().numpy()
+        return audio
+
+    def synth_speech(self, text):
+        audio = self.synth_speech_array(text)
 
         return postprocess_audio(
             audio, src_rate=TTS_SAMPLE_RATE, dst_rate=OUTPUT_SAMPLE_RATE

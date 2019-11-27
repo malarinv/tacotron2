@@ -39,9 +39,9 @@ class HParams(object):
     filter_length = 1024
     hop_length = 256
     win_length = 1024
-    n_mel_channels: int = 40
+    n_mel_channels: int = 80
     mel_fmin: float = 0.0
-    mel_fmax: float = 4000.0
+    mel_fmax: float = 8000.0
     ################################
     # Model Parameters             #
     ################################
