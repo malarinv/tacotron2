@@ -12,12 +12,12 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "klepto==0.1.6",
-    "numpy==1.16.4",
+    "numpy~=1.16.4",
     "inflect==0.2.5",
     "librosa==0.6.0",
-    "scipy==1.3.0",
+    "scipy~=1.3.0",
     "Unidecode==1.0.22",
-    "torch==1.1.0",
+    "torch~=1.1.0",
     "PyAudio==0.2.11"
 ]
 
@@ -53,7 +53,7 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/malarinv/tacotron2",
-    version="0.2.0",
+    version="0.3.0",
     zip_safe=False,
     entry_points={"console_scripts": ("tts_debug = taco2.tts:main",)},
 )
