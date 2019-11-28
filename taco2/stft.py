@@ -84,8 +84,8 @@ class STFT(torch.nn.Module):
             forward_basis *= fft_window
             inverse_basis *= fft_window
 
-        self.register_buffer("forward_basis", forward_basis.float())
-        self.register_buffer("inverse_basis", inverse_basis.float())
+        self.register_buffer("forward_basis", forward_basis.float().to(DEVICE))
+        self.register_buffer("inverse_basis", inverse_basis.float().to(DEVICE))
 
     def transform(self, input_data):
         num_batches = input_data.size(0)
@@ -121,10 +121,10 @@ class STFT(torch.nn.Module):
         return magnitude, phase
 
     def inverse(self, magnitude, phase):
+        phase = phase.to(DEVICE)
         recombine_magnitude_phase = torch.cat(
             [magnitude * torch.cos(phase), magnitude * torch.sin(phase)], dim=1
         )
-
         inverse_transform = F.conv_transpose1d(
             recombine_magnitude_phase,
             Variable(self.inverse_basis, requires_grad=False),
@@ -144,11 +144,10 @@ class STFT(torch.nn.Module):
             # remove modulation effects
             approx_nonzero_indices = torch.from_numpy(
                 np.where(window_sum > tiny(window_sum))[0]
-            )
+            ).to(DEVICE)
             window_sum = torch.autograd.Variable(
                 torch.from_numpy(window_sum), requires_grad=False
-            )
-            window_sum = window_sum.to(DEVICE)
+            ).to(DEVICE)
             inverse_transform[:, :, approx_nonzero_indices] /= window_sum[
                 approx_nonzero_indices
             ]

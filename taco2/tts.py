@@ -108,7 +108,7 @@ class TTSModel(object):
             with torch.no_grad():
                 audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
                 audio_t = self.denoiser(audio_t, 0.1)[0]
-            audio = audio_t[0].data.cpu().numpy()
+            audio = audio_t[0].data
         elif vocoder == "gl":
             mel_decompress = self.taco_stft.spectral_de_normalize(mel_outputs_postnet)
             mel_decompress = mel_decompress.transpose(1, 2).data.cpu()
@@ -116,25 +116,32 @@ class TTSModel(object):
             spec_from_mel = torch.mm(mel_decompress[0], self.taco_stft.mel_basis)
             spec_from_mel = spec_from_mel.transpose(0, 1).unsqueeze(0)
             spec_from_mel = spec_from_mel * spec_from_mel_scaling
+            spec_from_mel = (
+                spec_from_mel.cuda() if torch.cuda.is_available() else spec_from_mel
+            )
             audio = griffin_lim(
                 torch.autograd.Variable(spec_from_mel[:, :, :-1]),
                 self.taco_stft.stft_fn,
                 60,
             )
             audio = audio.squeeze()
-            audio = audio.cpu().numpy()
         else:
             raise ValueError("vocoder arg should be one of [wavglow|gl]")
+        audio = audio.cpu().numpy()
         return audio
 
-    def synth_speech(self, text, speed: 1.0, sample_rate=OUTPUT_SAMPLE_RATE):
+    def synth_speech(
+        self, text, speed: float = 1.0, sample_rate: int = OUTPUT_SAMPLE_RATE
+    ):
         audio = self.synth_speech_array(text, VOCODER_MODEL)
 
         return postprocess_audio(
-            audio, src_rate=self.hparams.sample_rate, dst_rate=sample_rate, tempo=speed
+            audio, src_rate=self.hparams.sampling_rate, dst_rate=sample_rate, tempo=speed
         )
 
-    def synth_speech_fast(self, text, speed: 1.0, sample_rate=OUTPUT_SAMPLE_RATE):
+    def synth_speech_fast(
+        self, text, speed: float = 1.0, sample_rate: int = OUTPUT_SAMPLE_RATE
+    ):
         mel_outputs_postnet = self.generate_mel_postnet(text)
 
         mel_decompress = self.taco_stft.spectral_de_normalize(mel_outputs_postnet)
@@ -152,7 +159,7 @@ class TTSModel(object):
         audio = audio.cpu().numpy()
 
         return postprocess_audio(
-            audio, tempo=speed, src_rate=self.hparams.sample_rate, dst_rate=sample_rate,
+            audio, tempo=speed, src_rate=self.hparams.sampling_rate, dst_rate=sample_rate
         )
 
 
