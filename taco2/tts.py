@@ -104,12 +104,12 @@ class TTSModel(object):
     def synth_speech_array(self, text, vocoder):
         mel_outputs_postnet = self.generate_mel_postnet(text)
 
-        if method == "wavglow":
+        if vocoder == "wavglow":
             with torch.no_grad():
                 audio_t = self.waveglow.infer(mel_outputs_postnet, sigma=0.666)
                 audio_t = self.denoiser(audio_t, 0.1)[0]
             audio = audio_t[0].data.cpu().numpy()
-        elif method == "gl":
+        elif vocoder == "gl":
             mel_decompress = self.taco_stft.spectral_de_normalize(mel_outputs_postnet)
             mel_decompress = mel_decompress.transpose(1, 2).data.cpu()
             spec_from_mel_scaling = 1000
