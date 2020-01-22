@@ -18,8 +18,9 @@ requirements = [
     "scipy~=1.3.0",
     "Unidecode==1.0.22",
     "torch~=1.1.0",
-    "PyAudio==0.2.11"
 ]
+
+extra_requirements = {"playback": ["PyAudio==0.2.11"]}
 
 setup_requirements = ["pytest-runner"]
 
@@ -44,6 +45,7 @@ setup(
     ],
     description="Taco2 TTS package.",
     install_requires=requirements,
+    extras_require=extra_requirements,
     long_description=readme + "\n\n" + history,
     include_package_data=True,
     keywords="tacotron2 tts",

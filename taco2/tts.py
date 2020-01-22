@@ -3,9 +3,9 @@
 
 import numpy as np
 import torch
-import pyaudio
 import klepto
 import argparse
+import warnings
 from pathlib import Path
 from .model import Tacotron2
 from glow import WaveGlow
@@ -156,6 +156,11 @@ class TTSModel(object):
 
 
 def player_gen():
+    try:
+        import pyaudio
+    except ModuleNotFoundError:
+        warnings.warn("module 'pyaudio' is not installed requried for playback")
+        return
     audio_interface = pyaudio.PyAudio()
     _audio_stream = audio_interface.open(
         format=pyaudio.paInt16, channels=1, rate=OUTPUT_SAMPLE_RATE, output=True
