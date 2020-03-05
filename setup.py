@@ -20,7 +20,13 @@ requirements = [
     "torch~=1.1.0",
 ]
 
-extra_requirements = {"playback": ["PyAudio==0.2.11"]}
+extra_requirements = {
+    "playback": ["PyAudio==0.2.11"],
+    "server": [
+        "google-cloud-texttospeech==1.0.1",
+        "rpyc==4.1.4",
+    ],
+}
 
 setup_requirements = ["pytest-runner"]
 
@@ -57,5 +63,10 @@ setup(
     url="https://github.com/malarinv/tacotron2",
     version="0.3.0",
     zip_safe=False,
-    entry_points={"console_scripts": ("tts_debug = taco2.tts:main",)},
+    entry_points={
+        "console_scripts": (
+            "tts_debug = taco2.tts:main",
+            "tts_rpyc_server = taco2.server.__main__:main",
+        )
+    },
 )
